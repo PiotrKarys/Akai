@@ -178,6 +178,52 @@ User Stories dla modułów MVP z kryteriami akceptacji. Definicja "done" dla ka�
 
 ---
 
+### US-017: Import Obiektów z Excel (Faza 1)
+**Jako** ADMIN, **chcę** zaimportować listę obiektów z pliku Excel, **aby** szybko załadować dane bez ręcznego wpisywania.
+
+**Kryteria akceptacji:**
+- AC1: Upload pliku `.xlsx` przez `POST /api/admin/import/objects`
+- AC2: Walidacja wymaganych kolumn (`nazwa`, `adres`, `typ`)
+- AC3: Raport importu: ile zaimportowano, ile pominięto, listę błędów per wiersz
+- AC4: Log importu w tabeli `IMPORT_LOG`
+- AC5: Duplikaty (po nazwie) raportowane, nie blokują całego importu
+
+---
+
+### US-018: Tryb Serwisowy (Faza 1 config / Faza 2 efekt)
+**Jako** TECHNIK, **chcę** włączyć tryb serwisowy na obiekcie, **aby** system wiedział, że prowadzę prace i tłumił alarmy.
+
+**Kryteria akceptacji:**
+- AC1: Aktywacja przez `POST /api/objects/{id}/service-mode` z powodem i opcjonalnym `until`
+- AC2: Ikona 🔧 widoczna przy obiekcie na liście i w szczegółach
+- AC3: (Faza 2) Alarmy z obiektu w trybie serwisowym: obniżony priorytet, brak dźwięku
+- AC4: Auto-dezaktywacja po upływie `until`
+- AC5: Wpis w `AUDIT_LOG` przy aktywacji i dezaktywacji
+
+---
+
+### US-019: Dziennik Dyspozytora (Faza 2)
+**Jako** OPERATOR, **chcę** rejestrować kontakty telefoniczne i notatki podczas obsługi alarmu, **aby** mieć pełną historię działań.
+
+**Kryteria akceptacji:**
+- AC1: Formularz wpisu: typ (połączenie wychodzące/przychodzące/notatka/patrol), kontakt, treść
+- AC2: Wybór kontaktu z listy `OBJECT_CONTACTS` lub wpis manualny (ale nie oba — walidacja)
+- AC3: Lista wpisów per Bundle per Obiekt z paginacją
+- AC4: Wpisy widoczne w szczegółach alarmu
+
+---
+
+### US-020: Rejestracja Urządzenia FCM (Faza 2)
+**Jako** TECHNIK z aplikacją mobilną, **chcę** otrzymywać push notifications o alarmach CRITICAL, **aby** reagować nawet gdy app jest w tle.
+
+**Kryteria akceptacji:**
+- AC1: Rejestracja tokenu FCM przy logowaniu (`POST /api/devices/register`)
+- AC2: Wyrejestrowanie przy wylogowaniu (`DELETE /api/devices/{id}`)
+- AC3: Push wysyłany tylko dla alarmów CRITICAL (nie dla INFO/WARNING)
+- AC4: Push NOT wysyłany dla obiektów w trybie serwisowym
+
+---
+
 ## Definition of Done (globalna)
 
 Feature jest "done" gdy:
@@ -187,3 +233,4 @@ Feature jest "done" gdy:
 4. ✅ Zmiana ma review od co najmniej 1 osoby
 5. ✅ Działa na środowisku STAGE
 6. ✅ Dokumentacja zaktualizowana (jeśli dotyczy)
+7. ✅ `CHANGELOG.md` zaktualizowany

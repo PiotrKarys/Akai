@@ -30,24 +30,24 @@ Opis architektury wdrożeniowej i środowisk.
 
 System składa się z **13 kontenerów** (PROD):
 
-| Serwis | Obraz | Rola | Zależności |
-|---|---|---|---|
-| **nginx** | nginx:alpine | Reverse proxy, TLS, health-check routing | backend-1, backend-2 |
-| **backend-1** | stam-replacer-backend | API FastAPI, logika biznesowa, WebSocket (inst. 1) | pgbouncer, rabbitmq, redis |
-| **backend-2** | stam-replacer-backend | API FastAPI, logika biznesowa, WebSocket (inst. 2) | pgbouncer, rabbitmq, redis |
-| **outbox-relay-1** | stam-replacer-backend | Relay Outbox Pattern → RabbitMQ (instancja 1) | pgbouncer, rabbitmq |
-| **outbox-relay-2** | stam-replacer-backend | Relay Outbox Pattern → RabbitMQ (instancja 2) | pgbouncer, rabbitmq |
+| Serwis | Obraz | Rola | Zależności | Dostępne od Fazy |
+|---|---|---|---|---|
+| **nginx** | nginx:alpine | Reverse proxy, TLS, health-check routing | backend-1, backend-2 | **Faza 1** |
+| **backend-1** | stam-replacer-backend | API FastAPI, logika biznesowa, WebSocket (inst. 1) | pgbouncer, rabbitmq, redis | **Faza 1** |
+| **backend-2** | stam-replacer-backend | API FastAPI, logika biznesowa, WebSocket (inst. 2) | pgbouncer, rabbitmq, redis | **Faza 6** (HA) |
+| **outbox-relay-1** | stam-replacer-backend | Relay Outbox Pattern → RabbitMQ (instancja 1) | pgbouncer, rabbitmq | **Faza 2** |
+| **outbox-relay-2** | stam-replacer-backend | Relay Outbox Pattern → RabbitMQ (instancja 2) | pgbouncer, rabbitmq | **Faza 6** (HA) |
 
 > [!NOTE]
 > **Multi-instance Outbox Relay:** Dwie instancje relay eliminują SPOF. Bezpieczne dzięki `FOR UPDATE SKIP LOCKED` — obie instancje konkurują o wiersze bez ryzyka podwójnego przetworzenia. Metryka: `outbox_relay_active_instances` (alert jeśli <1 instancja aktywna >30s).
-| **satel-worker** | stam-satel-worker | Połączenie TCP/IP z centralami ETHM-1 | pgbouncer, rabbitmq, redis |
-| **pg-primary** | postgres:15 (Patroni) | Primary PostgreSQL (read-write) | etcd |
-| **pg-replica** | postgres:15 (Patroni) | Standby PostgreSQL (read-only) | etcd, pg-primary |
-| **etcd** | bitnami/etcd | Consensus store dla Patroni failover | — |
-| **pgbouncer** | pgbouncer | Connection pooler z auto-wykrywaniem primary | pg-primary, pg-replica |
-| **redis** | redis:7-alpine | Live State Cache (stan central, sesje) | — |
-| **rabbitmq** | rabbitmq:3-management | Kolejka zdarzeń i komend | — |
-| **sms-agent** | stam-sms-agent | Odbiór SMS z modemu GSM | rabbitmq |
+| **satel-worker** | stam-satel-worker | Połączenie TCP/IP z centralami ETHM-1 | pgbouncer, rabbitmq, redis | **Faza 2** |
+| **pg-primary** | postgres:15 (Patroni) | Primary PostgreSQL (read-write) | etcd | **Faza 1** |
+| **pg-replica** | postgres:15 (Patroni) | Standby PostgreSQL (read-only) | etcd, pg-primary | **Faza 6** (HA) |
+| **etcd** | bitnami/etcd | Consensus store dla Patroni failover | — | **Faza 6** (HA) |
+| **pgbouncer** | pgbouncer | Connection pooler z auto-wykrywaniem primary | pg-primary, pg-replica | **Faza 1** |
+| **redis** | redis:7-alpine | Live State Cache (stan central, sesje) | — | **Faza 2** |
+| **rabbitmq** | rabbitmq:3-management | Kolejka zdarzeń i komend | — | **Faza 2** |
+| **sms-agent** | stam-sms-agent | Odbiór SMS z modemu GSM | rabbitmq | **Faza 4** |
 
 > **Uwaga DEV:** W środowisku DEV można używać uproszczonej konfiguracji: 1 backend, 1 PostgreSQL (bez Patroni), bez nginx.
 

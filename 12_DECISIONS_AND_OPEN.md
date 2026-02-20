@@ -107,10 +107,16 @@ Rejestr podjętych decyzji architektonicznych (ADR) oraz lista otwartych pytań.
 - **Uzasadnienie:** Na dynamicznie zmieniającej się liście alarmów, offset pagination powoduje duplikaty i pominięcia (nowe alarmy przesuwają stare).
 - **Status:** Zaakceptowane. Szczegóły: **10_API_HIGH_LEVEL.md sekcja 9**.
 
+### ADR-019: No STAM Migration — Excel Import Only
+- **Decyzja:** Brak automatycznej migracji z bazy STAM (Firebird/Interbase). Dane obiektów importowane ręcznie przez Excel (`POST /api/admin/import/objects`).
+- **Uzasadnienie:** Baza STAM nie jest dostępna programowo. Struktury tabel są nieznane. Ręczny import jest kontrolowany i audytowalny.
+- **Konsekwencje:** Nowy plik `19_DEV_TOOLING.md` z definicją schematu Excel. Tabela `IMPORT_LOG` w ERD. Endpoint `POST /api/admin/import/objects`.
+- **Status:** Zaakceptowane. Szczegóły: **19_DEV_TOOLING.md sekcja 4**, **10_API_HIGH_LEVEL.md sekcja 13**.
+
 ---
 
 ## 2. Otwarte Pytania (Do rozstrzygnięcia w trakcie)
 
 1. **Mapy Offline:** Czy na mobile potrzebujemy pełnych map offline (duży rozmiar), czy wystarczy cache kafelków Google/OSM z ostatnich wizyt?
-2. **Migracja danych:** Czy mamy dostęp do bazy STAM (Firebird/Interbase) żeby zmigrować historię, czy startujemy z czystą kartą?
+2. ~~**Migracja danych:** Czy mamy dostęp do bazy STAM (Firebird/Interbase) żeby zmigrować historię, czy startujemy z czystą kartą?~~ **✅ RESOLVED: Brak migracji STAM.** Startujemy z czystą kartą + import Excel. Szczegóły: ADR-019.
 3. ~~**DB failover tooling:** Patroni / pg_auto_failover / repmgr — do decyzji przy wdrożeniu HA (v1.0).~~ **✅ RESOLVED: Patroni** (automatyczny failover, etcd consensus, PgBouncer connection pooling). Szczegóły: `09_HA_RTO_RPO.md` (HA-01), `11_DEPLOYMENT.md`.

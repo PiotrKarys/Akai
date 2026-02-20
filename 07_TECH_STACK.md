@@ -31,6 +31,7 @@ Definicja stosu technologicznego (Tech Stack). Agent AI nie może używać techn
 - `aio-pika` - klient RabbitMQ.
 - `redis-py` (async) - klient Redis.
 - `gammu` / `python-gammu` - obsługa modemu USB.
+- `structlog` - logowanie strukturalne (JSON), obowiązuje od Fazy 1. Szczegóły: **19_DEV_TOOLING.md, sekcja 2**.
 - *Custom TCP Driver* - implementacja protokołu Satel wg dokumentacji (0xFE 0xFE...).
 
 ### Frontend (Flutter):

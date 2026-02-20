@@ -16,7 +16,8 @@ Definicja formatów wiadomości (event schemas) przesyłanych przez RabbitMQ. Te
 |---|---|---|
 | `satel.events` | topic | Zdarzenia z central alarmowych |
 | `sms.events` | topic | Zdarzenia z parserów SMS |
-| `system.commands` | direct | Komendy sterujące do Worker (v2.0) |
+| `system.commands` | direct | Komendy sterujące do Worker (Faza 5) |
+| `system.notifications` | direct | Powiadomienia push (FCM) — Faza 2 |
 | `system.dlx` | fanout | Dead Letter Exchange |
 
 ### Queues
@@ -28,6 +29,7 @@ Definicja formatów wiadomości (event schemas) przesyłanych przez RabbitMQ. Te
 | `commands.satel.high` | system.commands | `cmd.satel.high` | Satel Worker (priorytet) |
 | `commands.satel.low` | system.commands | `cmd.satel.low` | Satel Worker |
 | `events.dead` | system.dlx | `#` | Monitoring / Manual Review |
+| `notifications.push` | system.notifications | `notification.push.alarm` | Notification Worker (FCM) |
 
 ### Priorytetyzacja komend
 
@@ -220,6 +222,83 @@ Definicja formatów wiadomości (event schemas) przesyłanych przez RabbitMQ. Te
 | `status` | enum | `ACK` / `NACK` / `TIMEOUT` |
 | `error_message` | string | Opis błędu (jeśli NACK) |
 | `executed_at` | string | Timestamp wykonania |
+
+---
+
+## 4b. Event Schema: Panel State Changed (Faza 2)
+
+**Producent:** Satel Worker
+**Exchange:** `satel.events`
+**Routing Key:** `satel.state.{panel_id}`
+
+**Kontekst:** Satel Worker przy każdej zmianie stanu partycji publikuje zdarzenie. Backend konsumuje, zapisuje do tabeli `PANEL_STATE_HISTORY` (**04_DATA_MODEL_ERD.md**) i ewentualnie aktualizuje Redis Live State.
+
+### Struktura wiadomości
+
+| Pole | Typ | Wymagane | Opis |
+|---|---|---|---|
+| `event_id` | string (UUID v4) | ✓ | Unikalny identyfikator zdarzenia |
+| `timestamp` | string (ISO 8601) | ✓ | Czas wykrycia zmiany stanu |
+| `source` | enum | ✓ | Stałe: `"SATEL"` |
+| `panel_id` | string | ✓ | ID centrali w systemie |
+| `partition_id` | int | ✓ | Numer partycji |
+| `old_state` | enum | ✓ | `DISARMED` / `ARMED_FULL` / `ARMED_STAY` / `ALARM` / `UNKNOWN` |
+| `new_state` | enum | ✓ | j.w. |
+| `triggered_by` | string | ✓ | `"system"` / `user_id` (jeśli komenda z UI) |
+| `service_instance_id` | string | ✓ | Identyfikator instancji Worker |
+
+### Przykład
+
+```json
+{
+  "event_id": "d7e8f9a0-b1c2-3d4e-5f6a-7b8c9d0e1f2a",
+  "timestamp": "2026-02-20T14:30:00.123Z",
+  "source": "SATEL",
+  "panel_id": "panel_001",
+  "partition_id": 1,
+  "old_state": "DISARMED",
+  "new_state": "ARMED_FULL",
+  "triggered_by": "system",
+  "service_instance_id": "satel-worker-1"
+}
+```
+
+---
+
+## 4c. Event Schema: Push Notification (Faza 2)
+
+**Producent:** Backend API (via Outbox Relay)
+**Exchange:** `system.notifications`
+**Routing Key:** `notification.push.alarm`
+**Konsument:** Notification Worker (lub background task w backendzie)
+
+**Kontekst:** Backend core NIE wysyła HTTP do Firebase synchronicznie. Zamiast tego zapisuje zdarzenie do tabeli `OUTBOX`, a Notification Worker konsumuje asynchronicznie i wysyła push przez FCM API. Szczegóły architektury: **02_ARCHITECTURE.md, sekcja 2.5**.
+
+### Struktura wiadomości
+
+| Pole | Typ | Wymagane | Opis |
+|---|---|---|---|
+| `notification_id` | string (UUID v4) | ✓ | Unikalny identyfikator powiadomienia |
+| `timestamp` | string (ISO 8601) | ✓ | Czas wygenerowania |
+| `bundle_id` | string | ✓ | ID alarmu źródłowego |
+| `object_id` | string | ✓ | ID obiektu |
+| `object_name` | string | ✓ | Nazwa obiektu (dla czytelności w push) |
+| `priority` | enum | ✓ | `CRITICAL` (— push wysyłany TYLKO dla CRITICAL) |
+| `description` | string | ✓ | Krótki opis alarmu |
+| `target_user_ids` | array[string] | ✓ | Lista user_id do których wysłać push |
+
+### Logika Notification Workera
+
+1. Odczytaj `target_user_ids` z wiadomości.
+2. Dla każdego user_id → pobierz tokeny FCM z `USER_DEVICES`.
+3. Wyślij batch do FCM API.
+4. Tokeny z błędem `NOT_REGISTERED` → usuń z `USER_DEVICES`.
+5. Zapisz wynik do `NOTIFICATIONS` (status: SENT/FAILED).
+
+### Filtr (Backend przed zapisem do Outbox)
+- `priority` == `CRITICAL` → TAK
+- `service_mode_active` == true na obiekcie → **NIE** (pomijaj)
+- Brak zarejestrowanych `USER_DEVICES` → **NIE** (brak targetów = skip)
 
 ---
 

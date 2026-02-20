@@ -19,14 +19,15 @@ Definicja metryk, alertów i dashboardów do monitorowania systemu w produkcji.
 ## 2. Strategia Logowania
 
 ### Format logów
-Wszystkie serwisy logują w formacie **Structured JSON**:
+Wszystkie serwisy logują w formacie **Structured JSON** (obowiązuje od **Fazy 1**, biblioteka: `structlog`):
 
 ```
 {
   "timestamp": "ISO8601",
   "level": "INFO|WARNING|ERROR|CRITICAL",
   "service": "backend|satel-worker|sms-agent",
-  "message": "Alarm created for panel_001",
+  "event": "Alarm created for panel_001",
+  "request_id": "550e8400-e29b-41d4-a716-446655440000",
   "context": {
     "panel_id": "panel_001",
     "event_type": "ALARM",
@@ -34,6 +35,9 @@ Wszystkie serwisy logują w formacie **Structured JSON**:
   }
 }
 ```
+
+> [!IMPORTANT]
+> **Każdy log MUSI zawierać `request_id` (UUID).** Generowany per request, propagowany w headerze `X-Request-ID` przez Nginx. Pozwala śledzić request przez cały pipeline. Szczegóły konfiguracji: **19_DEV_TOOLING.md, sekcja 2**.
 
 ### Poziomy logowania
 
